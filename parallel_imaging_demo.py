@@ -39,14 +39,14 @@ show.imshow(np.abs(coil_images), tile_shape=(4, 2), colorbar=True)
 # Undersample
 acc_factor = 2
 ref_lines = 16
-(data, pat) = simulation.sample_data(phan, csm, acc_factor, ref_lines)
+(data0, pat) = simulation.sample_data(phan, csm, acc_factor, ref_lines)
 
 # Add noise
 noise = np.random.standard_normal(
     data.shape) + 1j*np.random.standard_normal(data.shape)
 noise = (5.0/matrix_size)*noise
-kspace = np.logical_or(pat == 1, pat == 3).astype('float32')*(data + noise)
-data = (pat > 0).astype('float32')*(data + noise)
+kspace = np.logical_or(pat == 1, pat == 3).astype('float32')*(data0 + noise)
+data = (pat > 0).astype('float32')*(data0 + noise)
 
 # Calculate the noise prewhitening matrix
 dmtx = coils.calculate_prewhitening(noise)
@@ -64,6 +64,24 @@ show.imshow(np.abs(alias_img))
 show.imshow(np.abs(gmap_sense), colorbar=True)
 recon_sense = np.squeeze(np.sum(alias_img * unmix_sense, 0))
 show.imshow(np.abs(recon_sense), colorbar=True)
+
+if False:
+    # 2D SENSE example
+    acc_factorx = 2
+
+    (data2, pat2) = sample_data(phan, csm, acc_y=acc_factor, ref_y=ref_lines,
+                                acc_x=acc_factorx, ref_x=ref_lines)
+    kspace2 = np.logical_or(pat2 == 1, pat2 == 3).astype('float32')*(data0 + noise)
+    data2 = (pat > 0).astype('float32')*(data0 + noise)
+
+    # Reconstruct aliased images
+    alias_img2 = transform.transform_kspace_to_image(
+        kspace2, dim=(1, 2)) * np.sqrt(acc_factor*acc_factorx)
+    show.imshow(np.abs(alias_img2))
+
+    (unmix_sense2, gmap_sense2) = calculate_2dsense_unmixing(acc_factor, acc_factorx, csm)
+    recon_sense2 = np.squeeze(np.sum(alias_img2 * unmix_sense2, 0))
+    show.imshow(np.abs(recon_sense2), colorbar=True)
 
 # (unmix_grappa,gmap_grappa) = grappa.calculate_grappa_unmixing(
 #    data, acc_factor, data_mask=pat>1, csm=csm,kernel_size=(2,5))

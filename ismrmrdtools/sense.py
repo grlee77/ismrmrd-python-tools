@@ -56,11 +56,77 @@ def _calculate_sense_unmixing_1d(acc_factor, csm1d, regularization_factor):
     for b in range(nblocks):
         A = csm1d[:, b:ny:nblocks].T
         if np.max(np.abs(A)) > 0:
-            #            unmix1d[:,b:ny:nblocks] = np.linalg.pinv(A)
-            AHA = np.dot(np.conj(A.T), A)
-            reduced_eye = np.diag(np.abs(np.diag(AHA)) > 0)
-            n_alias = np.sum(reduced_eye)
-            scaled_reg_factor = regularization_factor * np.trace(AHA) / n_alias
-            unmix1d[:, b:ny:nblocks] = np.dot(np.linalg.pinv(
-                AHA + (reduced_eye*scaled_reg_factor)), np.conj(A.T))
+            if regularization_factor == 0:
+                unmix1d[:, b:ny:nblocks] = np.linalg.pinv(A)
+            else:
+                AHA = np.dot(np.conj(A.T), A)
+                reduced_eye = np.diag(np.abs(np.diag(AHA)) > 0)
+                n_alias = np.sum(reduced_eye)
+                scaled_reg_factor = regularization_factor * (
+                    np.trace(AHA) / n_alias)
+                unmix1d[:, b:ny:nblocks] = np.dot(np.linalg.pinv(
+                    AHA + (reduced_eye*scaled_reg_factor)), np.conj(A.T))
     return unmix1d
+
+
+def calculate_2dsense_unmixing(acc_factor_x, acc_factor_y, csm,
+                               regularization_factor=0.001):
+    """Calculate the unmixing coefficients for a 2D image using a
+    SENSE algorithm.
+
+    Paramters
+    ---------
+    acc_factor : int
+        Acceleration factor, e.g. 2
+    csm : (coil, y, x) array
+        Coil sensitivity map.
+    regularization_factor : float, optional
+        Tikhonov regularization weight.
+            - 0 = no regularization
+            - set higher for more aggressive regularization.
+
+    Returns
+    -------
+    unmix : (coil, y, x) array
+        Image unmixing coefficients for a single ``x`` location.
+    gmap : (y, x) array
+        Noise enhancement map.
+    """
+
+    if csm.ndim != 3:
+        raise ValueError("Coil sensitivity map must have exactly 3 dimensions")
+
+    unmix = np.zeros(csm.shape, np.complex64)
+
+    nc = csm.shape[0]
+    ny = csm.shape[1]
+    nx = csm.shape[2]
+
+    nblocksy = ny//acc_factor_y
+    nblocksx = nx//acc_factor_x
+
+    for by in range(nblocksy):
+        for bx in range(nblocksx):
+            A = csm[:, by:ny:nblocksy, bx:nx:nblocksx].reshape(
+                (nc, -1), order='F').T
+            if np.max(np.abs(A)) > 0:
+                if regularization_factor == 0:
+                    unmix[:, by:ny:nblocksy, bx:nx:nblocksx] = \
+                        np.linalg.pinv(A).reshape(
+                            (nc, acc_factor_y, acc_factor_x), order='F')
+                else:
+                    AHA = np.dot(np.conj(A.T), A)
+                    reduced_eye = np.diag(np.abs(np.diag(AHA)) > 0)
+                    n_alias = np.sum(reduced_eye)
+                    scaled_reg_factor = regularization_factor * (
+                        np.trace(AHA)/n_alias)
+                    U = np.dot(
+                        np.linalg.pinv(AHA + (reduced_eye*scaled_reg_factor)),
+                        np.conj(A.T))
+                    unmix[:, by:ny:nblocksy, bx:nx:nblocksx] = \
+                        U.reshape((nc, acc_factor_y, acc_factor_x), order='F')
+
+    gmap = np.squeeze(np.sqrt(np.sum(abs(unmix) ** 2, 0))) * \
+        np.squeeze(np.sqrt(np.sum(abs(csm) ** 2, 0)))
+
+    return (unmix, gmap)

@@ -6,8 +6,7 @@ import numpy as np
 from ismrmrdtools import transform
 
 
-def sample_data(img_obj, csm, acc_y=1, ref_y=0, sshift_y=0,
-                acc_x=1, ref_x=0, sshift_x=0):
+def sample_data(img_obj, csm, acc=1, ref=0, sshift=0):
     """Sample the k-space of object provided in `img_obj` after first applying
     coil sensitivity maps in `csm` and Fourier transforming to k-space.
 
@@ -42,8 +41,7 @@ def sample_data(img_obj, csm, acc_y=1, ref_y=0, sshift_y=0,
     Michael S. Hansen (michael.hansen@nih.gov)
     """
 
-    sshift_x = sshift_x % acc_x
-    sshift_y = sshift_y % acc_y
+    sshift = sshift % acc
 
     if img_obj.ndim != 2:
         raise ValueError("Only two dimensional objects supported at the "
@@ -54,15 +52,10 @@ def sample_data(img_obj, csm, acc_y=1, ref_y=0, sshift_y=0,
         raise ValueError("Object and csm dimension mismatch")
 
     pat_img = np.zeros(img_obj.shape, dtype=np.int8)
-    pat_img[sshift_y:-1:acc_y, sshift_x:-1:acc_x] = 1
+    pat_img[sshift:-1:acc, :] = 1
     pat_ref = np.zeros(img_obj.shape, dtype=np.int8)
-    if ref_y > 0 and ref_x > 0:
-        pat_ref[(0+img_obj.shape[0]//2):(ref_y+img_obj.shape[0]//2),
-                (0+img_obj.shape[1]//2):(ref_x+img_obj.shape[1]//2)] = 2
-    elif ref_y > 0:
-        pat_ref[(0+img_obj.shape[0]//2):(ref_y+img_obj.shape[0]//2), :] = 2
-    elif ref_x > 0:
-        pat_ref[:, (0+img_obj.shape[1]//2):(ref_x+img_obj.shape[1]//2)] = 2
+    if ref > 0:
+        pat_ref[(0+img_obj.shape[0]/2):(ref+img_obj.shape[0]/2), :] = 2
 
     pat = pat_img + pat_ref
 

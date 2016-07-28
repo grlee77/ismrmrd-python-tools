@@ -5,6 +5,9 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 
 
+# TODO: implement Peeters J et. al. 2013:
+#     SENSE with Improved Tolerance to Inaccuracies in CoilSensitivity Maps
+
 def calculate_sense_unmixing(acc_factor, csm, regularization_factor=0.001):
     """Calculate the unmixing coefficients for a 2D image using a
     SENSE algorithm.
